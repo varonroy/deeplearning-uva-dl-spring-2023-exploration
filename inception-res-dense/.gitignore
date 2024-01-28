@@ -1,0 +1,12 @@
+debug/
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+.vscode
+logs
+out
+
+.env
+.env.*
+

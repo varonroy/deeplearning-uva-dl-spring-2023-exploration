@@ -1,2 +1,3 @@
-# deeplearning-uva-dl-spring-2023-exploration
+# DL Exploration
 Exploring the models / techniques / analysis from UvA's DL Notebooks
+
