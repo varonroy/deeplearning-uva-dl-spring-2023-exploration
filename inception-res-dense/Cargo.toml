@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # DL
 burn = { version = "0.11.1", features = ["train", "tch", "ndarray"] }
+# burn = { git = "https://github.com/varonroy/burn", branch = "tuple-module" , features = ["train", "tch", "ndarray"] }
 
 # error
 anyhow = "1.0.79"

@@ -353,6 +353,18 @@ impl<B: Backend> Model<B> {
     }
 }
 
+impl<B: Backend> ClassificationModel<B> for Model<B> {
+    fn forward_classification(
+        &self,
+        x: Tensor<B, 4>,
+        label: Tensor<B, 1, Int>,
+    ) -> ClassificationOutput<B> {
+        let out = self.forward(x);
+        let loss = CrossEntropyLoss::new(None).forward(out.clone(), label.clone());
+        ClassificationOutput::new(loss, out, label)
+    }
+}
+
 #[derive(Config)]
 pub struct ModelConfig {
     input: ConvBlockConfig,
@@ -410,18 +422,6 @@ impl Default for ModelConfig {
                 LinearConfig::new(128, NUM_CLASSES as _),
             ),
         )
-    }
-}
-
-impl<B: Backend> ClassificationModel<B> for Model<B> {
-    fn forward_classification(
-        &self,
-        x: Tensor<B, 4>,
-        label: Tensor<B, 1, Int>,
-    ) -> ClassificationOutput<B> {
-        let out = self.forward(x);
-        let loss = CrossEntropyLoss::new(None).forward(out.clone(), label.clone());
-        ClassificationOutput::new(loss, out, label)
     }
 }
 
