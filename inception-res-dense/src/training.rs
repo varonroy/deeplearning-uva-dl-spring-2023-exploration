@@ -37,6 +37,9 @@ macro_rules! impl_steps {
 }
 
 impl_steps!(crate::model::inception::Model<B>);
+impl_steps!(crate::model::res::pre::Model<B>);
+impl_steps!(crate::model::res::regular::Model<B>);
+impl_steps!(crate::model::dense::Model<B>);
 
 #[derive(Config)]
 pub struct TrainingConfig {
@@ -54,7 +57,10 @@ pub struct TrainingConfig {
 
 pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: B::Device) -> anyhow::Result<()> {
     log::info!("- train -");
-    let model = crate::model::inception::ModelConfig::default().init();
+    // let model = crate::model::inception::ModelConfig::default().init();
+    // let model = crate::model::res::regular::ModelConfig::default().init();
+    // let model = crate::model::res::pre::ModelConfig::default().init();
+    let model = crate::model::dense::ModelConfig::default().init();
 
     let artifacts_dir = get_env("ARTIFACTS_DIR")?;
 

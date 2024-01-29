@@ -6,16 +6,19 @@ edition = "2021"
 [dependencies]
 # DL
 burn = { version = "0.11.1", features = ["train", "tch", "ndarray"] }
-# burn = { git = "https://github.com/varonroy/burn", branch = "tuple-module" , features = ["train", "tch", "ndarray"] }
+dl-utils = { path = "../dl-utils" }
+dl-utils-burn-sequential = { path = "../dl-utils-burn-sequential" }
 
 # error
 anyhow = "1.0.79"
 thiserror = "1.0.56"
 
+# serde
+serde = { version = "1.0.196", features = ["derive"] }
+
 # misc
 dotenv = "0.15.0"
 itertools = "0.12.0"
-serde = { version = "1.0.196", features = ["derive"] }
 image = "0.24.8"
 termion = "3.0.0"
 log = "0.4.20"

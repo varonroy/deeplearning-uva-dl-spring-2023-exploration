@@ -1,74 +1,63 @@
 use std::usize;
 
 use burn::{
-    config::Config,
     module::Module,
     nn::{
         conv::{Conv2d, Conv2dConfig},
         loss::CrossEntropyLoss,
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig},
-        BatchNorm, BatchNormConfig, Linear, LinearConfig, PaddingConfig2d,
+        BatchNorm, BatchNormConfig, Linear, LinearConfig,
     },
     tensor::{backend::Backend, Int, Tensor},
     train::ClassificationOutput,
 };
+use dl_utils_burn_sequential::SequentialForward;
 
-use crate::{conv2d, data::cifar10::NUM_CLASSES, model::ClassificationModel, sequential};
+use crate::{data::cifar10::NUM_CLASSES, model::ClassificationModel};
 
-use super::super::{Activation, ActivationConfig, Flatten, FlattenConfig42};
+use dl_utils::conv_2d;
+use dl_utils::nn::{Activation, ActivationConfig, Flatten, Flatten42Config};
+use dl_utils::InitFns;
 
-sequential!(
-    ResBlockCore,
-    ResBlockCoreConfig,
-    ResBlockCoreRecord,
-    4 => 4,
-    (bn_1, BatchNorm<B, 2>, BatchNormConfig),
-    (act_1, Activation, ActivationConfig),
-    (conv_1, Conv2d<B>, Conv2dConfig),
-    (bn_2, BatchNorm<B, 2>, BatchNormConfig),
-    (act_2, Activation, ActivationConfig),
-    (conv_2, Conv2d<B>, Conv2dConfig)
-);
+#[derive(Debug, Module, SequentialForward)]
+#[dims(4, 4)]
+pub struct ResBlockCore<B: Backend> {
+    bn_1: BatchNorm<B, 2>,
+    act_1: Activation,
+    conv_1: Conv2d<B>,
+    bn_2: BatchNorm<B, 2>,
+    act_2: Activation,
+    conv_2: Conv2d<B>,
+}
 
 impl ResBlockCoreConfig {
     pub fn new2(c_in: usize, c_out: usize, subsample: bool, act: ActivationConfig) -> Self {
+        let c_out = if !subsample { c_in } else { c_out };
+
         Self::new(
             BatchNormConfig::new(c_in),
             act,
-            Conv2dConfig::new([c_in, c_out], [3, 3])
-                .with_padding(PaddingConfig2d::Explicit(1, 1))
-                .with_stride(if subsample { [2, 2] } else { [1, 1] })
-                .with_bias(false),
+            conv_2d!(
+                c_in,
+                c_out,
+                kernel_size = 3,
+                padding = 1,
+                stride = if subsample { 2 } else { 1 },
+                bias = false
+            ),
             BatchNormConfig::new(c_out),
             act,
-            Conv2dConfig::new([c_out, c_out], [3, 3])
-                .with_padding(PaddingConfig2d::Explicit(1, 1))
-                .with_stride([1, 1])
-                .with_bias(false),
+            conv_2d!(c_out, c_out, kernel_size = 3, padding = 1, bias = false),
         )
     }
 }
 
-#[derive(Debug, Module)]
+#[derive(Debug, Module, SequentialForward)]
+#[dims(4, 4)]
 pub struct Downsample<B: Backend> {
     pub bn: BatchNorm<B, 2>,
     pub act: Activation,
     pub conv: Conv2d<B>,
-}
-
-impl<B: Backend> Downsample<B> {
-    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 4> {
-        let x = self.bn.forward(x);
-        let x = self.act.forward(x);
-        self.conv.forward(x)
-    }
-}
-
-#[derive(Debug, Config)]
-pub struct DownsampleConfig {
-    pub bn: BatchNormConfig,
-    pub act: ActivationConfig,
-    pub conv: Conv2dConfig,
 }
 
 impl DownsampleConfig {
@@ -76,35 +65,13 @@ impl DownsampleConfig {
         Self::new(
             BatchNormConfig::new(c_in),
             act,
-            conv2d!(
-                c_in = c_in,
-                c_out = c_out,
-                kernel_size = 1,
-                padding = 0,
-                stride = 1,
-                bias = false,
-            ),
+            conv_2d!(c_in, c_out, kernel_size = 1, stride = 2, bias = false),
         )
-    }
-
-    pub fn init<B: Backend>(&self) -> Downsample<B> {
-        Downsample {
-            bn: self.bn.init(),
-            act: self.act.init(),
-            conv: self.conv.init(),
-        }
-    }
-
-    pub fn init_with<B: Backend>(&self, record: DownsampleRecord<B>) -> Downsample<B> {
-        Downsample {
-            bn: self.bn.init_with(record.bn),
-            act: self.act.init_with(record.act),
-            conv: self.conv.init_with(record.conv),
-        }
     }
 }
 
-#[derive(Debug, Module)]
+#[derive(Debug, Module, SequentialForward)]
+#[manual_forward]
 pub struct ResBlock<B: Backend> {
     pub core: ResBlockCore<B>,
     pub downsample: Option<Downsample<B>>,
@@ -121,12 +88,6 @@ impl<B: Backend> ResBlock<B> {
     }
 }
 
-#[derive(Config)]
-pub struct ResBlockConfig {
-    pub core: ResBlockCoreConfig,
-    pub downsample: Option<DownsampleConfig>,
-}
-
 impl ResBlockConfig {
     pub fn new2(c_in: usize, c_out: usize, subsample: bool, act: ActivationConfig) -> Self {
         Self {
@@ -134,91 +95,36 @@ impl ResBlockConfig {
             downsample: subsample.then_some(DownsampleConfig::new2(c_in, c_out, act)),
         }
     }
-
-    pub fn init<B: Backend>(&self) -> ResBlock<B> {
-        ResBlock {
-            core: self.core.init(),
-            downsample: self.downsample.as_ref().map(|config| config.init()),
-        }
-    }
-
-    pub fn init_with<B: Backend>(&self, record: ResBlockRecord<B>) -> ResBlock<B> {
-        ResBlock {
-            core: self.core.init_with(record.core),
-            downsample: self
-                .downsample
-                .as_ref()
-                .zip(record.downsample)
-                .map(|(config, record)| config.init_with(record)),
-        }
-    }
 }
 
-#[derive(Debug, Module)]
+#[derive(Debug, Module, SequentialForward)]
+#[dims(4, 4)]
 pub struct ResNetBody<B: Backend> {
     blocks: Vec<ResBlock<B>>,
 }
 
-impl<B: Backend> ResNetBody<B> {
-    pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 4> {
-        let mut x = x;
-        for layer in &self.blocks {
-            x = layer.forward(x);
-        }
-        x
-    }
+type Flatten42 = Flatten<4, 2>;
+
+#[derive(Debug, Module, SequentialForward)]
+#[dims(4, 2)]
+pub struct Model<B: Backend> {
+    input: Conv2d<B>,
+    body: ResNetBody<B>,
+    output_pool: AdaptiveAvgPool2d,
+    output_flatten: Flatten42,
+    output_linear: Linear<B>,
 }
 
-#[derive(Config)]
-pub struct ResNetBodyConfig {
-    pub blocks: Vec<ResBlockConfig>,
-}
-
-impl ResNetBodyConfig {
-    pub fn init<B: Backend>(&self) -> ResNetBody<B> {
-        ResNetBody {
-            blocks: self.blocks.iter().map(|config| config.init()).collect(),
-        }
-    }
-
-    pub fn init_with<B: Backend>(&self, record: ResNetBodyRecord<B>) -> ResNetBody<B> {
-        ResNetBody {
-            blocks: self
-                .blocks
-                .iter()
-                .zip(record.blocks.into_iter())
-                .map(|(config, record)| config.init_with(record))
-                .collect(),
-        }
-    }
-}
-
-use super::super::InitWith;
-sequential!(
-    ResNet,
-    ResNetConfig,
-    ResNetRecord,
-    4 => 2,
-    // input
-    (input, Conv2d<B>, Conv2dConfig),
-    // body
-    (body, ResNetBody<B>, ResNetBodyConfig),
-    // output
-    (output_pool, AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig),
-    (output_flatten, Flatten<4, 2>, FlattenConfig42),
-    (output_linear, Linear<B>, LinearConfig)
-);
-
-impl Default for ResNetConfig {
+impl Default for ModelConfig {
     fn default() -> Self {
         let act = ActivationConfig::ReLU;
         let num_blocks = [3, 3, 3];
         let c_hidden = [16, 32, 64];
 
         Self::new(
-            conv2d!(
-                c_in = 3,
-                c_out = c_hidden[0],
+            conv_2d!(
+                3,
+                c_hidden[0],
                 kernel_size = 3,
                 padding = 1,
                 stride = 1,
@@ -242,13 +148,13 @@ impl Default for ResNetConfig {
                     .collect(),
             ),
             AdaptiveAvgPool2dConfig::new([1, 1]),
-            FlattenConfig42::new(1, 3),
+            Flatten42Config::new(1, 3),
             LinearConfig::new(*c_hidden.last().unwrap(), NUM_CLASSES as _),
         )
     }
 }
 
-impl<B: Backend> ClassificationModel<B> for ResNet<B> {
+impl<B: Backend> ClassificationModel<B> for Model<B> {
     fn forward_classification(
         &self,
         x: Tensor<B, 4>,
@@ -264,11 +170,11 @@ impl<B: Backend> ClassificationModel<B> for ResNet<B> {
 mod tests {
     use burn::tensor::{backend::Backend, Float, Tensor};
 
-    use super::ResNetConfig;
+    use super::ModelConfig;
     use crate::data::cifar10::{IMG_CHANNELS, IMG_HEIGHT, IMG_WIDTH, NUM_CLASSES};
 
     fn test<B: Backend>() {
-        let model = ResNetConfig::default().init::<B>();
+        let model = ModelConfig::default().init::<B>();
         let input: Tensor<B, 4, Float> = Tensor::zeros([
             8,
             IMG_CHANNELS as usize,
