@@ -9,6 +9,7 @@ use burn::{
     tensor::{backend::Backend, Int, Tensor},
     train::ClassificationOutput,
 };
+use dl_utils::pipe;
 use dl_utils::{
     conv_2d,
     nn::{Activation, ActivationConfig, Flatten, Flatten42Config},
@@ -19,14 +20,6 @@ use dl_utils_burn_sequential::SequentialForward;
 use crate::data::cifar10::NUM_CLASSES;
 
 use super::ClassificationModel;
-
-macro_rules! pipe {
-    ($x:expr $(,$path:ident.$layer:ident)*$(,)?) => {{
-        let x = $x;
-        $(let x = $path.$layer.forward(x);)*
-        x
-    }};
-}
 
 #[derive(Debug, Module, SequentialForward)]
 #[manual_forward]

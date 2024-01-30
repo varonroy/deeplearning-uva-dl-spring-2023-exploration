@@ -1,19 +1,15 @@
 [package]
-name = "inception-res-dense"
-version = "0.0.1"
+name = "dl-utils"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 # DL
-burn = { version = "0.11.1", features = ["train", "tch", "ndarray"] }
+burn = { version = "0.11.1" }
 
 # this is temporary until burn updates to version 0.12.0
 # burn = { git = "https://github.com/tracel-ai/burn.git" }
 # web-sys = "0.3.67"
-
-
-dl-utils = { path = "../dl-utils" }
-dl-utils-burn-sequential = { path = "../dl-utils-burn-sequential" }
 
 # error
 anyhow = "1.0.79"
@@ -23,9 +19,8 @@ thiserror = "1.0.56"
 serde = { version = "1.0.196", features = ["derive"] }
 
 # misc
-dotenv = "0.15.0"
 itertools = "0.12.0"
 image = "0.24.8"
 termion = "3.0.0"
-log = "0.4.20"
+derive-new = "0.6.0"
 

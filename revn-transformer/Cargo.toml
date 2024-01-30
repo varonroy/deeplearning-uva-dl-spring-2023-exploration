@@ -1,6 +1,6 @@
 [package]
-name = "inception-res-dense"
-version = "0.0.1"
+name = "revn-transformer"
+version = "0.1.0"
 edition = "2021"
 
 [dependencies]
@@ -10,7 +10,6 @@ burn = { version = "0.11.1", features = ["train", "tch", "ndarray"] }
 # this is temporary until burn updates to version 0.12.0
 # burn = { git = "https://github.com/tracel-ai/burn.git" }
 # web-sys = "0.3.67"
-
 
 dl-utils = { path = "../dl-utils" }
 dl-utils-burn-sequential = { path = "../dl-utils-burn-sequential" }
@@ -28,4 +27,6 @@ itertools = "0.12.0"
 image = "0.24.8"
 termion = "3.0.0"
 log = "0.4.20"
+rand = "0.8.5"
+derive-new = "0.6.0"
 
