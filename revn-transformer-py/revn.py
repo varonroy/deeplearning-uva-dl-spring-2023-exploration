@@ -259,7 +259,7 @@ class RevDataMoudule(pl.LightningDataModule):
         return self.dataloader(self.validation_data)
 
     def test_dataloader(self):
-        return self.dataloader(self.test_dataloader)
+        return self.dataloader(self.test_data)
 
 
 # prefer performance
