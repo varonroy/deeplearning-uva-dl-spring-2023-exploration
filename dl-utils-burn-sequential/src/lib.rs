@@ -110,7 +110,7 @@ pub fn sequential_forward(input: TokenStream) -> TokenStream {
         }
 
         impl #config_name {
-            pub fn init #generics (&self) -> #module_name<#(#generic_idents,)*> {
+            pub fn init #generics (&self, device: &B::Device) -> #module_name<#(#generic_idents,)*> {
                 #module_name {
                     #(#config_init_fn_body,)*
                 }
@@ -123,6 +123,7 @@ pub fn sequential_forward(input: TokenStream) -> TokenStream {
             }
         }
     };
+
     // eprintln!("--------------");
     // eprintln!("{}", output);
     // eprintln!("--------------");

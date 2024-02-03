@@ -1,11 +1,18 @@
 pub mod activation;
-pub mod dropout;
 pub mod flatten;
-pub mod pool;
-pub mod pos;
 
 pub use activation::*;
-pub use dropout::*;
 pub use flatten::*;
-pub use pos::*;
-// pub use pool::*;
+
+use burn::tensor::{backend::Backend, Tensor};
+
+#[derive(
+    Debug, Clone, Copy, derive_new::new, serde::Deserialize, serde::Serialize, burn::module::Module,
+)]
+pub struct Identity {}
+
+impl Identity {
+    pub fn forward<B: Backend, const D: usize>(&self, x: Tensor<B, D>) -> Tensor<B, D> {
+        x
+    }
+}

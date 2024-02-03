@@ -28,7 +28,7 @@ impl<B: Backend> Batcher<Cifar10Item, Cifar10Batch<B>> for Cifar10Batcher<B> {
         let img = items
             .iter()
             .map(|item| Data::<f32, 3>::from(item.img))
-            .map(|data| Tensor::<B, 3>::from_data(data.convert()))
+            .map(|data| Tensor::<B, 3>::from_data(data.convert(), &self.device))
             .map(|tensor|
                  // H x W x C -> C x W x H
                  tensor.swap_dims(0, 2)
@@ -42,7 +42,7 @@ impl<B: Backend> Batcher<Cifar10Item, Cifar10Batch<B>> for Cifar10Batcher<B> {
             .iter()
             .map(|item| item.label as i64)
             .map(|label| Data::from([label.elem()]))
-            .map(|data| Tensor::<B, 1, Int>::from_data(data))
+            .map(|data| Tensor::<B, 1, Int>::from_data(data, &self.device))
             .collect();
 
         let img = Tensor::stack(img, 0).to_device(&self.device);

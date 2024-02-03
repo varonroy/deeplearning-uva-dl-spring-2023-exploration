@@ -55,12 +55,12 @@ pub struct TrainingConfig {
     pub learning_rate: f64,
 }
 
-pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: B::Device) -> anyhow::Result<()> {
+pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: &B::Device) -> anyhow::Result<()> {
     log::info!("- train -");
-    // let model = crate::model::inception::ModelConfig::default().init();
-    // let model = crate::model::res::regular::ModelConfig::default().init();
-    // let model = crate::model::res::pre::ModelConfig::default().init();
-    let model = crate::model::dense::ModelConfig::default().init();
+    // let model = crate::model::inception::ModelConfig::default().init(device);
+    // let model = crate::model::res::regular::ModelConfig::default().init(device);
+    // let model = crate::model::res::pre::ModelConfig::default().init(device);
+    let model = crate::model::dense::ModelConfig::default().init(device);
 
     let artifacts_dir = get_env("ARTIFACTS_DIR")?;
 
@@ -91,7 +91,7 @@ pub fn train<B: AutodiffBackend>(config: TrainingConfig, device: B::Device) -> a
         .metric_train_numeric(LossMetric::new())
         .metric_valid_numeric(LossMetric::new())
         .with_file_checkpointer(CompactRecorder::new())
-        .devices(vec![device])
+        .devices(vec![device.clone()])
         .num_epochs(config.num_epochs)
         .build(model, config.optimizer.init(), config.learning_rate);
 

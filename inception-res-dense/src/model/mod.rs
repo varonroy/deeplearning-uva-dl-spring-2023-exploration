@@ -56,3 +56,55 @@ macro_rules! impl_config {
         }
     };
 }
+
+#[cfg(test)]
+mod tests {
+    use super::dense;
+    use super::inception;
+    use super::res;
+    use crate::data::cifar10::{IMG_CHANNELS, IMG_HEIGHT, IMG_WIDTH, NUM_CLASSES};
+    use burn::tensor::{backend::Backend, Float, Tensor};
+
+    macro_rules! test_model {
+        ($model:ident, $device:ident) => {
+            let input: Tensor<B, 4, Float> = Tensor::zeros(
+                [
+                    8,
+                    IMG_CHANNELS as usize,
+                    IMG_HEIGHT as usize,
+                    IMG_WIDTH as usize,
+                ],
+                $device,
+            );
+            let output = $model.forward(input);
+            assert_eq!(output.shape().dims, [8, NUM_CLASSES as usize]);
+        };
+    }
+
+    fn test_models<B: Backend>(device: &B::Device) {
+        let model = dense::ModelConfig::default().init::<B>(device);
+        test_model!(model, device);
+
+        let model = inception::ModelConfig::default().init::<B>(device);
+        test_model!(model, device);
+
+        let model = res::pre::ModelConfig::default().init::<B>(device);
+        test_model!(model, device);
+
+        let model = res::regular::ModelConfig::default().init::<B>(device);
+        test_model!(model, device);
+    }
+
+    #[test]
+    fn sanity_ndarray() {
+        type B = burn::backend::ndarray::NdArray;
+        let device = burn::backend::ndarray::NdArrayDevice::Cpu;
+        test_models::<B>(&device);
+    }
+
+    #[test]
+    fn sanity_tch_cpu() {
+        type B = burn::backend::LibTorch;
+        test_models::<B>(&burn::backend::libtorch::LibTorchDevice::Cpu);
+    }
+}

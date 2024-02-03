@@ -6,8 +6,6 @@ use burn::{
 };
 use derive_new::new;
 
-use crate::InitFns;
-
 macro_rules! impl_activation {
     ($name:ident, $fn:expr) => {
         #[derive(Debug, Module, Clone, Copy, new)]
@@ -35,7 +33,7 @@ macro_rules! impl_activation_config {
                 $activation::new()
             }
 
-            pub fn init_with(&self, _record: burn::module::ConstantRecord) -> $activation {
+            pub fn init_with(&self, _record: ConstantRecord) -> $activation {
                 $activation::new()
             }
         }
@@ -55,20 +53,8 @@ pub enum ActivationConfig {
     Gelu,
 }
 
-impl InitFns for ActivationConfig {
-    type Module = Activation;
-    type Record = ConstantRecord;
-
-    fn init(&self) -> Self::Module {
-        match self {
-            Self::ReLU => Activation::ReLU,
-            Self::Sigmoid => Activation::Sigmoid,
-            Self::Tanh => Activation::Tanh,
-            Self::Gelu => Activation::Gelu,
-        }
-    }
-
-    fn init_with(&self, _record: Self::Record) -> Self::Module {
+impl ActivationConfig {
+    pub fn init(&self) -> Activation {
         match self {
             Self::ReLU => Activation::ReLU,
             Self::Sigmoid => Activation::Sigmoid,

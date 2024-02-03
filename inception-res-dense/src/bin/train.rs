@@ -13,7 +13,7 @@ fn main() -> anyhow::Result<()> {
     println!("starting training");
     training::train::<Autodiff<LibTorch<f32>>>(
         training::TrainingConfig::new(AdamConfig::new()),
-        device,
+        &device,
     )?;
     println!("done!");
     Ok(())

@@ -1,8 +1,6 @@
 use burn::config::Config;
-use burn::module::{ConstantRecord, Module};
+use burn::module::Module;
 use burn::tensor::{backend::Backend, Tensor};
-
-use crate::InitFns;
 
 #[derive(Debug, Module, Clone, Copy)]
 pub struct Flatten<const DI: usize, const DO: usize> {
@@ -24,19 +22,9 @@ macro_rules! impl_flatten {
             pub end_dim: usize,
         }
 
-        impl InitFns for $config_name {
-            type Module = Flatten<$dim_in, $dim_out>;
-            type Record = ConstantRecord;
-
-            fn init(&self) -> Self::Module {
+        impl $config_name {
+            pub fn init(&self) -> Flatten<$dim_in, $dim_out> {
                 Flatten {
-                    start_dim: self.start_dim,
-                    end_dim: self.end_dim,
-                }
-            }
-
-            fn init_with(&self, _record: Self::Record) -> Self::Module {
-                Self::Module {
                     start_dim: self.start_dim,
                     end_dim: self.end_dim,
                 }

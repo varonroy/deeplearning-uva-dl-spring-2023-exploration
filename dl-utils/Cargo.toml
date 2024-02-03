@@ -5,11 +5,7 @@ edition = "2021"
 
 [dependencies]
 # DL
-burn = { version = "0.11.1" }
-
-# this is temporary until burn updates to version 0.12.0
-# burn = { git = "https://github.com/tracel-ai/burn.git" }
-# web-sys = "0.3.67"
+burn = { version = "0.12.1" }
 
 # error
 anyhow = "1.0.79"

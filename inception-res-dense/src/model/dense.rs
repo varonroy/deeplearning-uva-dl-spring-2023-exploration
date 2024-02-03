@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     nn::{
         conv::{Conv2d, Conv2dConfig},
-        loss::CrossEntropyLoss,
+        loss::CrossEntropyLossConfig,
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig, AvgPool2d, AvgPool2dConfig},
         BatchNorm, BatchNormConfig, Linear, LinearConfig,
     },
@@ -13,7 +13,6 @@ use dl_utils::pipe;
 use dl_utils::{
     conv_2d,
     nn::{Activation, ActivationConfig, Flatten, Flatten42Config},
-    InitFns,
 };
 use dl_utils_burn_sequential::SequentialForward;
 
@@ -118,25 +117,6 @@ impl TransitionLayerConfig {
 }
 
 #[derive(Debug, Module, SequentialForward)]
-#[dims(4, 4)]
-struct ModelInput<B: Backend> {
-    conv: Conv2d<B>,
-}
-
-#[derive(Debug, Module, SequentialForward)]
-#[dims(4, 4)]
-pub struct ModelBodyBlock<B: Backend> {
-    dense: DenseBlock<B>,
-    transition: Option<TransitionLayer<B>>,
-}
-
-#[derive(Debug, Module, SequentialForward)]
-#[dims(4, 4)]
-pub struct ModelBody<B: Backend> {
-    blocks: Vec<ModelBodyBlock<B>>,
-}
-
-#[derive(Debug, Module, SequentialForward)]
 #[dims(4, 2)]
 struct ModelOutput<B: Backend> {
     bn: BatchNorm<B, 2>,
@@ -151,8 +131,8 @@ type Flatten42 = Flatten<4, 2>;
 #[derive(Debug, Module, SequentialForward)]
 #[dims(4, 2)]
 pub struct Model<B: Backend> {
-    input: ModelInput<B>,
-    body: ModelBody<B>,
+    input: Conv2d<B>,
+    body: Vec<(DenseBlock<B>, Option<TransitionLayer<B>>)>,
     output: ModelOutput<B>,
 }
 
@@ -166,32 +146,29 @@ impl Default for ModelConfig {
         let mut c_hidden = growth_rate * bn_size;
 
         Self {
-            input: ModelInputConfig::new(conv_2d!(3, c_hidden, kernel_size = 3, padding = 1)),
-            body: ModelBodyConfig::new(
-                num_layers
-                    .into_iter()
-                    .enumerate()
-                    .map(|(block_idx, layer_num_layers)| {
-                        let dense = DenseBlockConfig::new2(
-                            c_hidden,
-                            layer_num_layers,
-                            bn_size,
-                            growth_rate,
-                            act,
-                        );
-                        c_hidden = c_hidden + layer_num_layers * growth_rate;
-                        let transition = if block_idx < num_layers.len() {
-                            let transition =
-                                TransitionLayerConfig::new2(c_hidden, c_hidden / 2, act);
-                            c_hidden = c_hidden / 2;
-                            Some(transition)
-                        } else {
-                            None
-                        };
-                        ModelBodyBlockConfig::new(dense, transition)
-                    })
-                    .collect(),
-            ),
+            input: conv_2d!(3, c_hidden, kernel_size = 3, padding = 1),
+            body: num_layers
+                .into_iter()
+                .enumerate()
+                .map(|(block_idx, layer_num_layers)| {
+                    let dense = DenseBlockConfig::new2(
+                        c_hidden,
+                        layer_num_layers,
+                        bn_size,
+                        growth_rate,
+                        act,
+                    );
+                    c_hidden = c_hidden + layer_num_layers * growth_rate;
+                    let transition = if block_idx < num_layers.len() {
+                        let transition = TransitionLayerConfig::new2(c_hidden, c_hidden / 2, act);
+                        c_hidden = c_hidden / 2;
+                        Some(transition)
+                    } else {
+                        None
+                    };
+                    (dense, transition)
+                })
+                .collect(),
             output: ModelOutputConfig::new(
                 BatchNormConfig::new(c_hidden),
                 act,
@@ -209,38 +186,11 @@ impl<B: Backend> ClassificationModel<B> for Model<B> {
         x: Tensor<B, 4>,
         label: Tensor<B, 1, Int>,
     ) -> ClassificationOutput<B> {
-        let out = self.forward(x);
-        let loss = CrossEntropyLoss::new(None).forward(out.clone(), label.clone());
-        ClassificationOutput::new(loss, out, label)
-    }
-}
+        let output = self.forward(x);
+        let loss = CrossEntropyLossConfig::new()
+            .init(&output.device())
+            .forward(output.clone(), label.clone());
 
-#[cfg(test)]
-mod tests {
-    use burn::tensor::{backend::Backend, Float, Tensor};
-
-    use super::ModelConfig;
-    use crate::data::cifar10::{IMG_CHANNELS, IMG_HEIGHT, IMG_WIDTH, NUM_CLASSES};
-
-    fn test<B: Backend>() {
-        let model = ModelConfig::default().init::<B>();
-        let input: Tensor<B, 4, Float> = Tensor::zeros([
-            8,
-            IMG_CHANNELS as usize,
-            IMG_HEIGHT as usize,
-            IMG_WIDTH as usize,
-        ]);
-        let output = model.forward(input);
-        assert_eq!(output.shape().dims, [8, NUM_CLASSES as usize]);
-    }
-
-    #[test]
-    fn sanity_ndarray() {
-        test::<burn::backend::NdArray>();
-    }
-
-    #[test]
-    fn sanity_tch_cpu() {
-        test::<burn::backend::LibTorch>();
+        ClassificationOutput::new(loss, output, label)
     }
 }

@@ -2,7 +2,7 @@ use burn::{
     module::Module,
     nn::{
         conv::{Conv2d, Conv2dConfig},
-        loss::CrossEntropyLoss,
+        loss::CrossEntropyLossConfig,
         pool::{AdaptiveAvgPool2d, AdaptiveAvgPool2dConfig, MaxPool2d, MaxPool2dConfig},
         BatchNorm, BatchNormConfig, Linear, LinearConfig, PaddingConfig2d,
     },
@@ -13,7 +13,6 @@ use dl_utils::nn::{Activation, ActivationConfig, Flatten, Flatten42Config};
 use dl_utils_burn_sequential::SequentialForward;
 
 use crate::data::cifar10::NUM_CLASSES;
-use dl_utils::InitFns;
 
 use super::ClassificationModel;
 
@@ -146,7 +145,9 @@ impl<B: Backend> ClassificationModel<B> for Model<B> {
         label: Tensor<B, 1, Int>,
     ) -> ClassificationOutput<B> {
         let out = self.forward(x);
-        let loss = CrossEntropyLoss::new(None).forward(out.clone(), label.clone());
+        let loss = CrossEntropyLossConfig::new()
+            .init(&out.device())
+            .forward(out.clone(), label.clone());
         ClassificationOutput::new(loss, out, label)
     }
 }
@@ -184,37 +185,5 @@ impl Default for ModelConfig {
                 LinearConfig::new(128, NUM_CLASSES as _),
             ),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use burn::tensor::{backend::Backend, Float, Tensor};
-
-    use crate::{
-        data::cifar10::{IMG_CHANNELS, IMG_HEIGHT, IMG_WIDTH, NUM_CLASSES},
-        model::inception::ModelConfig,
-    };
-
-    fn test<B: Backend>() {
-        let model = ModelConfig::default().init::<B>();
-        let input: Tensor<B, 4, Float> = Tensor::zeros([
-            8,
-            IMG_CHANNELS as usize,
-            IMG_HEIGHT as usize,
-            IMG_WIDTH as usize,
-        ]);
-        let output = model.forward(input);
-        assert_eq!(output.shape().dims, [8, NUM_CLASSES as usize]);
-    }
-
-    #[test]
-    fn sanity_ndarray() {
-        test::<burn::backend::NdArray>();
-    }
-
-    #[test]
-    fn sanity_tch_cpu() {
-        test::<burn::backend::LibTorch>();
     }
 }
